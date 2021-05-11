@@ -43,6 +43,26 @@ namespace ToDoListBackend.Controllers
             return Ok(items);
         }
 
+        [HttpGet("today-one-item/{username}/{date}")]
+        public async Task<IActionResult> GetOneTodayItem(string username, string date)
+        {
+            var acc = await dbContext.Accounts.FindAsync(username);
+            if (acc is null)
+            {
+                return NotFound("Username does not exist");
+            }
+            var Date = DateTime.Parse(date);
+            Date = new DateTime(Date.Year, Date.Month, Date.Day, Date.Hour, Date.Minute, Date.Second, Date.Kind);
+            var item = dbContext.Items.Where(s => (s.owner == username) && (!s.completed) && ((s.timeRemind == null && (s.lastNotified == null || s.lastNotified.Value.Date < Date.Date)) || (s.timeRemind.Value == Date))).FirstOrDefault();
+            if (item is not null)
+            {
+                item.lastNotified = DateTime.Now;
+                dbContext.Items.Update(item);
+                await dbContext.SaveChangesAsync();
+            }
+            return Ok(item);
+        }
+
         [HttpGet("date-items/{username}/{date}")]
         public async Task<IActionResult> GetItemsFromDateAsync(string username, string date)
         {
@@ -104,7 +124,7 @@ namespace ToDoListBackend.Controllers
         }
 
         [HttpPut("update-today")]
-        public async Task<IActionResult> UpdateTodayItemsAsync([FromBody] HashSet<ToDoItem> items)
+        public async Task<IActionResult> UpdateTodayItemsAsync([FromBody] List<ToDoItem> items)
         {
             dbContext.Items.UpdateRange(items);
             await dbContext.SaveChangesAsync();
